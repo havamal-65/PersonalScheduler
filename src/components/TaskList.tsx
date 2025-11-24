@@ -28,25 +28,25 @@ interface TaskListProps {
 }
 
 const STATUS_CONFIG = {
-  pending: { 
-    color: 'bg-gray-100 text-gray-800', 
-    icon: AlertCircle, 
-    label: 'Pending' 
+  pending: {
+    color: 'bg-slate-100 text-slate-700',
+    icon: AlertCircle,
+    label: 'To Do'
   },
-  in_progress: { 
-    color: 'bg-blue-100 text-blue-800', 
-    icon: Play, 
-    label: 'In Progress' 
+  in_progress: {
+    color: 'bg-purple-100 text-purple-800',
+    icon: Play,
+    label: 'Doing'
   },
-  completed: { 
-    color: 'bg-green-100 text-green-800', 
-    icon: CheckCircle, 
-    label: 'Completed' 
+  completed: {
+    color: 'bg-emerald-100 text-emerald-800',
+    icon: CheckCircle,
+    label: 'Done'
   },
-  blocked: { 
-    color: 'bg-red-100 text-red-800', 
-    icon: Pause, 
-    label: 'Blocked' 
+  blocked: {
+    color: 'bg-amber-100 text-amber-800',
+    icon: Pause,
+    label: 'On Hold'
   },
 };
 
@@ -70,12 +70,12 @@ export default function TaskList({
   if (tasks.length === 0) {
     return (
       <div className="text-center py-12">
-        <Calendar className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+        <Calendar className="h-12 w-12 text-purple-300 mx-auto mb-4" />
         <h3 className="text-lg font-medium text-gray-900 mb-2">
-          No tasks yet
+          Your day is wide open
         </h3>
         <p className="text-gray-500">
-          Create your first task to get started with project planning.
+          Add your first task to start visualizing your day.
         </p>
       </div>
     );
@@ -173,8 +173,8 @@ export default function TaskList({
                   <div className="w-full bg-gray-200 rounded-full h-2">
                     <div
                       className={`h-2 rounded-full transition-all duration-300 ${
-                        task.progress === 100 ? 'bg-green-500' :
-                        trackedTime > task.estimatedDuration ? 'bg-red-500' : 'bg-blue-500'
+                        task.progress === 100 ? 'bg-emerald-500' :
+                        trackedTime > task.estimatedDuration ? 'bg-amber-500' : 'bg-purple-500'
                       }`}
                       style={{ width: `${Math.min(task.progress, 100)}%` }}
                     />

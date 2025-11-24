@@ -117,9 +117,9 @@ export default function CriticalPathDiagram({ tasks, onTaskClick }: CriticalPath
   if (tasks.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center h-64 text-gray-500">
-        <Info className="h-12 w-12 mb-4 text-gray-300" />
-        <p className="text-lg">No tasks to display</p>
-        <p className="text-sm">Add tasks to see the critical path analysis</p>
+        <Info className="h-12 w-12 mb-4 text-purple-300" />
+        <p className="text-lg">Nothing planned yet</p>
+        <p className="text-sm">Add activities to see what matters most today</p>
       </div>
     );
   }
@@ -166,7 +166,7 @@ export default function CriticalPathDiagram({ tasks, onTaskClick }: CriticalPath
         <button
           onClick={() => setShowLegend(!showLegend)}
           className={`p-1.5 rounded transition-colors ${
-            showLegend ? 'bg-blue-100 text-blue-700' : 'hover:bg-gray-100'
+            showLegend ? 'bg-purple-100 text-purple-700' : 'hover:bg-gray-100'
           }`}
           title="Toggle legend"
         >
@@ -174,15 +174,15 @@ export default function CriticalPathDiagram({ tasks, onTaskClick }: CriticalPath
         </button>
       </div>
 
-      {/* Project Summary */}
+      {/* Day Summary */}
       <div className="absolute top-4 left-4 z-10 bg-white rounded-lg shadow-md p-3">
         <div className="text-sm">
-          <div className="font-medium text-gray-900">Project Duration</div>
-          <div className="text-lg font-bold text-blue-600">
+          <div className="font-medium text-gray-900">Total Time Needed</div>
+          <div className="text-lg font-bold text-purple-600">
             {formatHoursForDisplay(projectDuration)}
           </div>
           <div className="text-xs text-gray-500 mt-1">
-            {criticalPath.length} task{criticalPath.length !== 1 ? 's' : ''} on critical path
+            {criticalPath.length} must-do item{criticalPath.length !== 1 ? 's' : ''}
           </div>
         </div>
       </div>
@@ -193,20 +193,20 @@ export default function CriticalPathDiagram({ tasks, onTaskClick }: CriticalPath
           <div className="text-xs font-medium text-gray-700 mb-2">Legend</div>
           <div className="space-y-2">
             <div className="flex items-center space-x-2">
-              <div className="w-4 h-4 bg-red-500 rounded" />
-              <span className="text-xs text-gray-600">Critical (no slack)</span>
+              <div className="w-4 h-4 bg-rose-500 rounded" />
+              <span className="text-xs text-gray-600">Must do (no flexibility)</span>
             </div>
             <div className="flex items-center space-x-2">
               <div className="w-4 h-4 bg-orange-400 rounded" />
-              <span className="text-xs text-gray-600">Near critical (&lt;1 day)</span>
+              <span className="text-xs text-gray-600">Important (little flexibility)</span>
             </div>
             <div className="flex items-center space-x-2">
               <div className="w-4 h-4 bg-yellow-400 rounded" />
-              <span className="text-xs text-gray-600">Some slack (&lt;1 week)</span>
+              <span className="text-xs text-gray-600">Can wait a bit</span>
             </div>
             <div className="flex items-center space-x-2">
-              <div className="w-4 h-4 bg-green-400 rounded" />
-              <span className="text-xs text-gray-600">Flexible (&gt;1 week)</span>
+              <div className="w-4 h-4 bg-emerald-400 rounded" />
+              <span className="text-xs text-gray-600">Flexible timing</span>
             </div>
             <div className="border-t pt-2 mt-2">
               <div className="text-xs text-gray-500">
@@ -299,20 +299,20 @@ function TaskNode({ task, cpmData, position, onClick, simpleMode, nodeWidth, nod
 
   // Determine color based on criticality and float
   const getColorClass = () => {
-    if (isCritical) return { bg: 'fill-red-100', border: 'stroke-red-500', indicator: 'fill-red-500' };
+    if (isCritical) return { bg: 'fill-rose-100', border: 'stroke-rose-500', indicator: 'fill-rose-500' };
     if (float <= 8) return { bg: 'fill-orange-100', border: 'stroke-orange-400', indicator: 'fill-orange-400' };
     if (float <= 40) return { bg: 'fill-yellow-100', border: 'stroke-yellow-500', indicator: 'fill-yellow-500' };
-    return { bg: 'fill-green-100', border: 'stroke-green-400', indicator: 'fill-green-400' };
+    return { bg: 'fill-emerald-100', border: 'stroke-emerald-400', indicator: 'fill-emerald-400' };
   };
 
   const colors = getColorClass();
 
   // Status indicator position
   const statusColors: Record<string, string> = {
-    pending: 'fill-gray-400',
-    in_progress: 'fill-blue-500',
-    completed: 'fill-green-600',
-    blocked: 'fill-red-600',
+    pending: 'fill-slate-400',
+    in_progress: 'fill-purple-500',
+    completed: 'fill-emerald-600',
+    blocked: 'fill-amber-500',
   };
 
   // Simple mode: compact node with just name, duration, and color
@@ -389,10 +389,10 @@ function TaskNode({ task, cpmData, position, onClick, simpleMode, nodeWidth, nod
             x={nodeWidth / 2}
             y={56}
             textAnchor="middle"
-            className="fill-red-600 font-bold"
+            className="fill-rose-600 font-bold"
             style={{ fontSize: '8px' }}
           >
-            CRITICAL
+            MUST DO
           </text>
         )}
       </g>
@@ -505,7 +505,7 @@ function TaskNode({ task, cpmData, position, onClick, simpleMode, nodeWidth, nod
           x={20}
           y={14}
           textAnchor="middle"
-          className={`font-bold ${isCritical ? 'fill-red-600' : 'fill-gray-700'}`}
+          className={`font-bold ${isCritical ? 'fill-rose-600' : 'fill-gray-700'}`}
           style={{ fontSize: '12px' }}
         >
           {isCritical ? '0' : formatHoursForDisplay(float)}
@@ -573,14 +573,14 @@ function DependencyArrow({ from, to, isCritical, nodeWidth, nodeHeight }: Depend
         >
           <polygon
             points="0 0, 10 3.5, 0 7"
-            className={isCritical ? 'fill-red-500' : 'fill-gray-400'}
+            className={isCritical ? 'fill-rose-500' : 'fill-gray-400'}
           />
         </marker>
       </defs>
       <path
         d={path}
         fill="none"
-        className={isCritical ? 'stroke-red-500' : 'stroke-gray-400'}
+        className={isCritical ? 'stroke-rose-500' : 'stroke-gray-400'}
         strokeWidth={isCritical ? 2.5 : 1.5}
         strokeDasharray={isCritical ? undefined : '4,2'}
         markerEnd={`url(#arrowhead-${isCritical ? 'critical' : 'normal'})`}

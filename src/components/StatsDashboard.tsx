@@ -65,14 +65,14 @@ export default function StatsDashboard({ tasks, getTaskTotalTime }: StatsDashboa
 
   return (
     <div className="mb-6">
-      <h2 className="text-lg font-semibold text-gray-900 mb-4">Productivity Insights</h2>
+      <h2 className="text-lg font-semibold text-gray-900 mb-4">Your Day at a Glance</h2>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         {/* Estimation Accuracy */}
         <div className="bg-white rounded-lg border border-gray-200 p-4">
           <div className="flex items-center justify-between mb-2">
-            <span className="text-sm font-medium text-gray-500">Estimation Accuracy</span>
-            <Target className="h-5 w-5 text-blue-500" />
+            <span className="text-sm font-medium text-gray-500">Planning Accuracy</span>
+            <Target className="h-5 w-5 text-purple-500" />
           </div>
           <div className="text-2xl font-bold text-gray-900">
             {estimationAccuracy.toFixed(0)}%
@@ -155,7 +155,7 @@ export default function StatsDashboard({ tasks, getTaskTotalTime }: StatsDashboa
               <div className="w-full bg-gray-200 rounded-full h-2">
                 <div
                   className={`h-2 rounded-full transition-all duration-300 ${
-                    inProgressTracked > inProgressEstimated ? 'bg-red-500' : 'bg-blue-500'
+                    inProgressTracked > inProgressEstimated ? 'bg-amber-500' : 'bg-purple-500'
                   }`}
                   style={{ width: `${Math.min((inProgressTracked / inProgressEstimated) * 100, 100)}%` }}
                 />

@@ -18,10 +18,10 @@ interface GanttChartProps {
 }
 
 const STATUS_COLORS = {
-  pending: 'bg-gray-400',
-  in_progress: 'bg-blue-500',
-  completed: 'bg-green-500',
-  blocked: 'bg-red-400',
+  pending: 'bg-slate-400',
+  in_progress: 'bg-purple-500',
+  completed: 'bg-emerald-500',
+  blocked: 'bg-amber-400',
 };
 
 const PRIORITY_BORDERS = {
@@ -74,13 +74,13 @@ export default function GanttChart({ tasks, onTaskClick }: GanttChartProps) {
   if (tasks.length === 0) {
     return (
       <div className="text-center py-12">
-        <div className="text-gray-400 mb-4">
+        <div className="text-purple-300 mb-4">
           <svg className="h-16 w-16 mx-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
           </svg>
         </div>
-        <h3 className="text-lg font-medium text-gray-900 mb-2">No tasks to display</h3>
-        <p className="text-gray-500">Add some tasks to see them on the Gantt chart timeline.</p>
+        <h3 className="text-lg font-medium text-gray-900 mb-2">Your timeline is empty</h3>
+        <p className="text-gray-500">Add activities to see your day unfold on the timeline.</p>
       </div>
     );
   }
@@ -129,7 +129,7 @@ export default function GanttChart({ tasks, onTaskClick }: GanttChartProps) {
               <div
                 key={task.id}
                 className={`h-12 flex items-center px-4 border-b border-gray-100 cursor-pointer transition-colors ${
-                  hoveredTask === task.id ? 'bg-blue-50' : 'hover:bg-gray-100'
+                  hoveredTask === task.id ? 'bg-purple-50' : 'hover:bg-gray-100'
                 }`}
                 onMouseEnter={() => setHoveredTask(task.id)}
                 onMouseLeave={() => setHoveredTask(null)}
@@ -176,7 +176,7 @@ export default function GanttChart({ tasks, onTaskClick }: GanttChartProps) {
                     key={idx}
                     className={`absolute top-0 h-full flex items-center justify-center text-xs border-r border-gray-100 ${
                       marker.isToday
-                        ? 'bg-blue-100 text-blue-700 font-bold'
+                        ? 'bg-purple-100 text-purple-700 font-bold'
                         : marker.isWeekend
                         ? 'bg-gray-100 text-gray-400'
                         : 'text-gray-600'
@@ -197,10 +197,10 @@ export default function GanttChart({ tasks, onTaskClick }: GanttChartProps) {
               {/* Today line */}
               {todayPosition !== null && (
                 <div
-                  className="absolute top-0 bottom-0 w-0.5 bg-blue-500 z-10"
+                  className="absolute top-0 bottom-0 w-0.5 bg-purple-500 z-10"
                   style={{ left: `${todayPosition}%` }}
                 >
-                  <div className="absolute -top-6 -left-3 bg-blue-500 text-white text-xs px-1 rounded">
+                  <div className="absolute -top-6 -left-3 bg-purple-500 text-white text-xs px-1 rounded">
                     Today
                   </div>
                 </div>
@@ -296,7 +296,7 @@ export default function GanttChart({ tasks, onTaskClick }: GanttChartProps) {
                     <div
                       className={`absolute h-8 rounded shadow-sm cursor-pointer transition-all border-l-4 ${
                         PRIORITY_BORDERS[task.priority]
-                      } ${hoveredTask === task.id ? 'ring-2 ring-blue-300 shadow-md' : ''}`}
+                      } ${hoveredTask === task.id ? 'ring-2 ring-purple-300 shadow-md' : ''}`}
                       style={{
                         left: `${left}%`,
                         width: `${Math.max(width, 2)}%`,
@@ -359,27 +359,27 @@ export default function GanttChart({ tasks, onTaskClick }: GanttChartProps) {
       {/* Legend */}
       <div className="flex items-center justify-center space-x-6 mt-4 text-xs text-gray-600">
         <div className="flex items-center">
-          <div className="w-3 h-3 rounded bg-gray-400 mr-2" />
-          Pending
+          <div className="w-3 h-3 rounded bg-slate-400 mr-2" />
+          To Do
         </div>
         <div className="flex items-center">
-          <div className="w-3 h-3 rounded bg-blue-500 mr-2" />
-          In Progress
+          <div className="w-3 h-3 rounded bg-purple-500 mr-2" />
+          Doing
         </div>
         <div className="flex items-center">
-          <div className="w-3 h-3 rounded bg-green-500 mr-2" />
-          Completed
+          <div className="w-3 h-3 rounded bg-emerald-500 mr-2" />
+          Done
         </div>
         <div className="flex items-center">
-          <div className="w-3 h-3 rounded bg-red-400 mr-2" />
-          Blocked
+          <div className="w-3 h-3 rounded bg-amber-400 mr-2" />
+          On Hold
         </div>
         <div className="border-l border-gray-300 pl-6 flex items-center">
-          <div className="w-1 h-3 bg-green-500 mr-1" />
+          <div className="w-1 h-3 bg-emerald-500 mr-1" />
           <span className="mr-2">Low</span>
           <div className="w-1 h-3 bg-yellow-500 mr-1" />
           <span className="mr-2">Med</span>
-          <div className="w-1 h-3 bg-red-500 mr-1" />
+          <div className="w-1 h-3 bg-rose-500 mr-1" />
           <span>High Priority</span>
         </div>
       </div>
