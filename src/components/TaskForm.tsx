@@ -50,6 +50,7 @@ export default function TaskForm({ isOpen, onClose, onSubmit, editingTask, title
   const [errors, setErrors] = useState<string[]>([]);
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [autoSchedule, setAutoSchedule] = useState(true);
+  const [scheduleMode, setScheduleMode] = useState<'asap' | 'end_of_project' | 'link_to_last'>('asap');
   const [selectedPreset, setSelectedPreset] = useState<number | null>(8); // Default to 1d
 
   // Reset form when editing task changes or dialog opens/closes
@@ -84,6 +85,7 @@ export default function TaskForm({ isOpen, onClose, onSubmit, editingTask, title
         });
         setShowAdvanced(false);
         setAutoSchedule(true);
+        setScheduleMode('asap');
         setSelectedPreset(8);
       }
       setErrors([]);
@@ -91,21 +93,32 @@ export default function TaskForm({ isOpen, onClose, onSubmit, editingTask, title
   }, [isOpen, editingTask]);
 
   // Calculate auto-scheduled start date based on dependencies
-  const getAutoScheduledStartDate = (): Date => {
-    if (!formData.dependencies || formData.dependencies.length === 0) {
-      return new Date(); // Start today if no dependencies
+  const getAutoScheduledStartDate = (overrideDependencies?: string[]): Date => {
+    let baseDate = new Date();
+    const depsToCheck = overrideDependencies || formData.dependencies || [];
+
+    // If "After last task" (without linking), find the absolute latest end date in the project
+    // But if we have dependencies, those usually dictate the start date anyway.
+    // The "end_of_project" mode is mostly useful when there are NO dependencies selected manually.
+    if (scheduleMode === 'end_of_project' && allTasks.length > 0 && depsToCheck.length === 0) {
+      allTasks.forEach(t => {
+        if (t.endDate > baseDate) {
+          baseDate = t.endDate;
+        }
+      });
     }
 
-    // Find the latest end date among all dependencies
-    let latestEnd = new Date();
-    formData.dependencies.forEach(depId => {
-      const depTask = allTasks.find(t => t.id === depId);
-      if (depTask && depTask.endDate > latestEnd) {
-        latestEnd = depTask.endDate;
-      }
-    });
+    // Respect dependencies
+    if (depsToCheck.length > 0) {
+      depsToCheck.forEach(depId => {
+        const depTask = allTasks.find(t => t.id === depId);
+        if (depTask && depTask.endDate > baseDate) {
+          baseDate = depTask.endDate;
+        }
+      });
+    }
 
-    return latestEnd;
+    return baseDate;
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -126,10 +139,22 @@ export default function TaskForm({ isOpen, onClose, onSubmit, editingTask, title
       return;
     }
 
-    // If auto-scheduling, calculate the start date
+    // Determine final dependencies
+    let finalDependencies = [...(formData.dependencies || [])];
+
+    // If "Link to previous", find the task with the latest end date and add it as a dependency
+    if (autoSchedule && scheduleMode === 'link_to_last' && allTasks.length > 0) {
+      const lastTask = allTasks.reduce((prev, current) => (prev.endDate > current.endDate) ? prev : current);
+      if (!finalDependencies.includes(lastTask.id)) {
+        finalDependencies.push(lastTask.id);
+      }
+    }
+
+    // If auto-scheduling, calculate the start date using the final dependencies
     const submitData = {
       ...formData,
-      startDate: autoSchedule ? getAutoScheduledStartDate() : formData.startDate,
+      dependencies: finalDependencies,
+      startDate: autoSchedule ? getAutoScheduledStartDate(finalDependencies) : formData.startDate,
     };
 
     onSubmit(submitData);
@@ -214,11 +239,10 @@ export default function TaskForm({ isOpen, onClose, onSubmit, editingTask, title
                   key={preset.hours}
                   type="button"
                   onClick={() => handleDurationPreset(preset.hours)}
-                  className={`px-3 py-1.5 text-sm font-medium rounded-lg transition-colors ${
-                    selectedPreset === preset.hours
+                  className={`px-3 py-1.5 text-sm font-medium rounded-lg transition-colors ${selectedPreset === preset.hours
                       ? 'bg-blue-500 text-white'
                       : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                  }`}
+                    }`}
                 >
                   {preset.label}
                 </button>
@@ -226,11 +250,10 @@ export default function TaskForm({ isOpen, onClose, onSubmit, editingTask, title
               <button
                 type="button"
                 onClick={() => setSelectedPreset(null)}
-                className={`px-3 py-1.5 text-sm font-medium rounded-lg transition-colors ${
-                  selectedPreset === null
+                className={`px-3 py-1.5 text-sm font-medium rounded-lg transition-colors ${selectedPreset === null
                     ? 'bg-blue-500 text-white'
                     : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                }`}
+                  }`}
               >
                 Custom
               </button>
@@ -258,7 +281,7 @@ export default function TaskForm({ isOpen, onClose, onSubmit, editingTask, title
 
           {/* Auto-Schedule Toggle */}
           <div className="bg-blue-50 rounded-lg p-3">
-            <label className="flex items-center cursor-pointer">
+            <label className="flex items-center cursor-pointer mb-2">
               <input
                 type="checkbox"
                 checked={autoSchedule}
@@ -270,14 +293,57 @@ export default function TaskForm({ isOpen, onClose, onSubmit, editingTask, title
                 Auto-schedule
               </span>
             </label>
-            <p className="text-xs text-blue-700 mt-1 ml-6">
-              {autoSchedule
-                ? formData.dependencies?.length
-                  ? 'Will start after selected dependencies complete'
-                  : 'Will start today'
-                : 'Manual start date below'
-              }
-            </p>
+
+            {autoSchedule && (
+              <div className="ml-6 space-y-2">
+                <div className="flex flex-col space-y-2">
+                  <label className="flex items-center cursor-pointer">
+                    <input
+                      type="radio"
+                      name="scheduleMode"
+                      value="asap"
+                      checked={scheduleMode === 'asap'}
+                      onChange={() => setScheduleMode('asap')}
+                      className="h-3 w-3 text-blue-600 border-gray-300 focus:ring-blue-500"
+                    />
+                    <span className="ml-2 text-xs text-blue-800">Start ASAP</span>
+                  </label>
+                  <label className="flex items-center cursor-pointer">
+                    <input
+                      type="radio"
+                      name="scheduleMode"
+                      value="end_of_project"
+                      checked={scheduleMode === 'end_of_project'}
+                      onChange={() => setScheduleMode('end_of_project')}
+                      className="h-3 w-3 text-blue-600 border-gray-300 focus:ring-blue-500"
+                    />
+                    <span className="ml-2 text-xs text-blue-800">After last task (no link)</span>
+                  </label>
+                  <label className="flex items-center cursor-pointer">
+                    <input
+                      type="radio"
+                      name="scheduleMode"
+                      value="link_to_last"
+                      checked={scheduleMode === 'link_to_last'}
+                      onChange={() => setScheduleMode('link_to_last')}
+                      className="h-3 w-3 text-blue-600 border-gray-300 focus:ring-blue-500"
+                    />
+                    <span className="ml-2 text-xs text-blue-800">Link to previous task</span>
+                  </label>
+                </div>
+                <p className="text-xs text-blue-600 mt-1">
+                  {scheduleMode === 'asap' && (formData.dependencies?.length ? 'Starts after dependencies complete' : 'Starts today')}
+                  {scheduleMode === 'end_of_project' && 'Starts after the project ends, but not linked'}
+                  {scheduleMode === 'link_to_last' && 'Starts after and links to the last task'}
+                </p>
+              </div>
+            )}
+
+            {!autoSchedule && (
+              <p className="text-xs text-blue-700 mt-1 ml-6">
+                Manual start date below
+              </p>
+            )}
           </div>
 
           {/* Manual Start Date (only if not auto-scheduling) */}

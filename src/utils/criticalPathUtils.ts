@@ -15,6 +15,8 @@ export interface CPMResult {
   taskData: Map<string, CPMTaskData>;
   criticalPath: string[]; // Array of task IDs in order
   projectDuration: number; // Total project duration in hours
+  projectStartDate: Date; // Earliest start date of all tasks
+  totalManHours: number; // Sum of all task durations
 }
 
 // Build adjacency list for tasks based on dependencies
@@ -89,11 +91,17 @@ function topologicalSort(tasks: Task[], predecessors: Map<string, string[]>): st
   return result;
 }
 
+// Helper to calculate hours between two dates
+function getHoursDifference(start: Date, end: Date): number {
+  return (end.getTime() - start.getTime()) / (1000 * 60 * 60);
+}
+
 // Forward pass: Calculate ES and EF for all tasks
 function forwardPass(
   tasks: Task[],
   sortedIds: string[],
-  predecessors: Map<string, string[]>
+  predecessors: Map<string, string[]>,
+  projectStartDate: Date
 ): Map<string, { es: number; ef: number }> {
   const results = new Map<string, { es: number; ef: number }>();
   const taskMap = new Map(tasks.map(t => [t.id, t]));
@@ -110,6 +118,13 @@ function forwardPass(
     if (validPreds.length > 0) {
       // ES = max(EF of all predecessors)
       es = Math.max(...validPreds.map(predId => results.get(predId)!.ef));
+    }
+
+    // Enforce Start Date Constraint
+    // ES cannot be earlier than the task's scheduled start date relative to project start
+    const startOffset = getHoursDifference(projectStartDate, new Date(task.startDate));
+    if (startOffset > es) {
+      es = startOffset;
     }
 
     const ef = es + task.estimatedDuration;
@@ -163,8 +178,17 @@ export function calculateCriticalPath(tasks: Task[]): CPMResult {
       taskData: new Map(),
       criticalPath: [],
       projectDuration: 0,
+      projectStartDate: new Date(),
+      totalManHours: 0,
     };
   }
+
+  // Determine Project Start Date (earliest start date of all tasks)
+  // We use this as the anchor (t=0)
+  const projectStartDate = tasks.reduce((min, task) => {
+    const start = new Date(task.startDate);
+    return start < min ? start : min;
+  }, new Date(tasks[0].startDate));
 
   const { predecessors, successors } = buildDependencyGraph(tasks);
   const sortedIds = topologicalSort(tasks, predecessors);
@@ -174,53 +198,130 @@ export function calculateCriticalPath(tasks: Task[]): CPMResult {
     console.warn('Dependency cycle detected, some tasks excluded from CPM calculation');
   }
 
-  // Forward pass
-  const forwardResults = forwardPass(tasks, sortedIds, predecessors);
+  // 1. Logical Forward Pass (Infinite Resources)
+  // We need this to calculate logical float and criticality
+  const logicalForward = forwardPass(tasks, sortedIds, predecessors, projectStartDate);
 
-  // Calculate project duration (max EF of all tasks)
-  let projectDuration = 0;
-  forwardResults.forEach(({ ef }) => {
-    if (ef > projectDuration) {
-      projectDuration = ef;
+  // Calculate logical project duration
+  let logicalDuration = 0;
+  logicalForward.forEach(({ ef }) => {
+    if (ef > logicalDuration) {
+      logicalDuration = ef;
     }
   });
 
-  // Backward pass
-  const backwardResults = backwardPass(tasks, sortedIds, successors, projectDuration);
+  // 2. Logical Backward Pass
+  const logicalBackward = backwardPass(tasks, sortedIds, successors, logicalDuration);
 
-  // Combine results and identify critical path
-  const taskData = new Map<string, CPMTaskData>();
+  // 3. Serial Scheduling (Resource Constrained - 1 Person)
+  // We use the Logical Late Start (LS) as the priority rule (Minimum Slack)
   const taskMap = new Map(tasks.map(t => [t.id, t]));
+  const scheduledTasks = new Map<string, { es: number; ef: number }>();
+
+  // Track unscheduled tasks and their current unsatisfied dependency count
+  const currentInDegree = new Map<string, number>();
+  tasks.forEach(task => {
+    const preds = predecessors.get(task.id) || [];
+    currentInDegree.set(task.id, preds.length);
+  });
+
+  // Ready queue contains tasks with all predecessors scheduled
+  let readyQueue: string[] = [];
+  tasks.forEach(task => {
+    if ((currentInDegree.get(task.id) || 0) === 0) {
+      readyQueue.push(task.id);
+    }
+  });
+
+  let currentTime = 0;
+  const totalTasks = tasks.length;
+  let scheduledCount = 0;
+
+  while (scheduledCount < totalTasks && readyQueue.length > 0) {
+    // Sort ready queue by Logical LS (ascending) -> "Minimum Slack" rule
+    // If tie, use Logical Duration (descending) -> "Longest Processing Time"
+    readyQueue.sort((a, b) => {
+      const lsA = logicalBackward.get(a)?.ls || 0;
+      const lsB = logicalBackward.get(b)?.ls || 0;
+      if (Math.abs(lsA - lsB) > 0.001) return lsA - lsB;
+
+      const durA = taskMap.get(a)?.estimatedDuration || 0;
+      const durB = taskMap.get(b)?.estimatedDuration || 0;
+      return durB - durA;
+    });
+
+    // Pick the highest priority task
+    const nextTaskId = readyQueue.shift()!;
+    const nextTask = taskMap.get(nextTaskId)!;
+
+    // Determine Earliest Possible Start based on:
+    // 1. Resource availability (currentTime)
+    // 2. Task Start Date constraint
+    const startOffset = getHoursDifference(projectStartDate, new Date(nextTask.startDate));
+    const es = Math.max(currentTime, startOffset);
+
+    const ef = es + nextTask.estimatedDuration;
+    scheduledTasks.set(nextTaskId, { es, ef });
+
+    // Resource becomes free after this task finishes
+    currentTime = ef;
+    scheduledCount++;
+
+    // Update successors
+    const succs = successors.get(nextTaskId) || [];
+    succs.forEach(succId => {
+      const newDegree = (currentInDegree.get(succId) || 0) - 1;
+      currentInDegree.set(succId, newDegree);
+      if (newDegree === 0) {
+        readyQueue.push(succId);
+      }
+    });
+  }
+
+  // 4. Combine Results
+  // We use the Serial Schedule for positions (ES/EF)
+  // We use the Logical CPM for metadata (Float, Criticality) to show "structural" importance
+  const taskData = new Map<string, CPMTaskData>();
 
   sortedIds.forEach(taskId => {
     const task = taskMap.get(taskId);
     if (!task) return;
 
-    const forward = forwardResults.get(taskId);
-    const backward = backwardResults.get(taskId);
+    const logicalFwd = logicalForward.get(taskId);
+    const logicalBwd = logicalBackward.get(taskId);
+    const serial = scheduledTasks.get(taskId);
 
-    if (forward && backward) {
-      const float = backward.ls - forward.es;
+    if (logicalFwd && logicalBwd && serial) {
+      const logicalFloat = logicalBwd.ls - logicalFwd.es;
+
       taskData.set(taskId, {
         taskId,
         duration: task.estimatedDuration,
-        es: forward.es,
-        ef: forward.ef,
-        ls: backward.ls,
-        lf: backward.lf,
-        float,
-        isCritical: Math.abs(float) < 0.001, // Account for floating point
+        // Use Serial times for the diagram layout
+        es: serial.es,
+        ef: serial.ef,
+        // For LS/LF in serial mode, they are effectively same as ES/EF because there's no gaps
+        ls: serial.es,
+        lf: serial.ef,
+        // Keep logical float to show flexibility relative to dependencies
+        float: logicalFloat,
+        isCritical: Math.abs(logicalFloat) < 0.001,
       });
     }
   });
 
-  // Build critical path by following tasks with zero float
+  // Build critical path (Logical)
   const criticalPath = buildCriticalPath(tasks, taskData, predecessors);
+
+  // Calculate Total Man Hours (Sum of all task durations)
+  const totalManHours = tasks.reduce((sum, task) => sum + task.estimatedDuration, 0);
 
   return {
     taskData,
     criticalPath,
-    projectDuration,
+    projectDuration: currentTime, // Total duration is now the sum of sequential tasks
+    projectStartDate,
+    totalManHours,
   };
 }
 
