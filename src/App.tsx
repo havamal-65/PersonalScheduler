@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Calendar, List, BarChart3, Plus, Filter, PieChart, GitBranch } from 'lucide-react';
+import { Calendar, List, Sparkles, Plus, Filter, PieChart, GitBranch, Sun } from 'lucide-react';
 import { Task, TaskStatus, ViewMode } from './types';
 import { useTasks } from './hooks/useTasks';
 import { useTimeTracking } from './hooks/useTimeTracking';
@@ -66,8 +66,8 @@ function App() {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
-          <BarChart3 className="h-8 w-8 text-primary-500 animate-pulse mx-auto mb-2" />
-          <p className="text-gray-600">Loading tasks...</p>
+          <Sun className="h-8 w-8 text-primary-500 animate-pulse mx-auto mb-2" />
+          <p className="text-gray-600">Loading your day...</p>
         </div>
       </div>
     );
@@ -80,14 +80,14 @@ function App() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             <div className="flex items-center">
-              <BarChart3 className="h-8 w-8 text-primary-500" />
+              <Sun className="h-8 w-8 text-primary-500" />
               <h1 className="ml-3 text-xl font-semibold text-gray-900">
-                Personal Gantt
+                DayFlow
               </h1>
               {/* Task count */}
               {tasks.length > 0 && (
-                <span className="ml-2 bg-gray-100 text-gray-600 px-2 py-1 rounded-full text-sm">
-                  {stats.completed}/{stats.total} tasks completed
+                <span className="ml-2 bg-primary-50 text-primary-700 px-2 py-1 rounded-full text-sm">
+                  {stats.completed}/{stats.total} done today
                 </span>
               )}
             </div>
@@ -123,7 +123,7 @@ function App() {
                   }`}
                 >
                   <GitBranch className="h-4 w-4 mr-2" />
-                  Critical Path
+                  Priority Flow
                 </button>
                 <button
                   onClick={() => setCurrentView('gantt')}
@@ -134,7 +134,7 @@ function App() {
                   }`}
                 >
                   <Calendar className="h-4 w-4 mr-2" />
-                  Gantt
+                  Timeline
                 </button>
                 <button
                   onClick={() => setCurrentView('list')}
@@ -154,11 +154,11 @@ function App() {
                 <button
                   onClick={() => setShowStats(!showStats)}
                   className={`p-2 rounded-lg transition-colors ${
-                    showStats ? 'bg-blue-100 text-blue-700' : 'text-gray-500 hover:bg-gray-100'
+                    showStats ? 'bg-primary-100 text-primary-700' : 'text-gray-500 hover:bg-gray-100'
                   }`}
-                  title={showStats ? 'Hide stats' : 'Show stats'}
+                  title={showStats ? 'Hide insights' : 'Show insights'}
                 >
-                  <PieChart className="h-5 w-5" />
+                  <Sparkles className="h-5 w-5" />
                 </button>
               )}
 
