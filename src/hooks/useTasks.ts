@@ -1,122 +1,90 @@
 import { useState, useEffect, useCallback } from 'react';
+import { v4 as uuidv4 } from 'uuid';
 import { Task } from '../types';
-import { getTasks, saveTasks } from '../utils/storage';
-import { createTask, updateTask, validateTask, CreateTaskInput, UpdateTaskInput } from '../utils/taskUtils';
+
+const STORAGE_KEY = 'scheduler-tasks';
+
+function loadTasks(): Task[] {
+  try {
+    const stored = localStorage.getItem(STORAGE_KEY);
+    if (!stored) return [];
+
+    const parsed = JSON.parse(stored);
+    return parsed.map((task: any) => ({
+      ...task,
+      startDate: new Date(task.startDate),
+      createdAt: new Date(task.createdAt),
+    }));
+  } catch (err) {
+    console.error('Error loading tasks:', err);
+    return [];
+  }
+}
+
+function saveTasks(tasks: Task[]): void {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(tasks));
+  } catch (err) {
+    console.error('Error saving tasks:', err);
+  }
+}
+
+export interface CreateTaskInput {
+  title: string;
+  description?: string;
+  duration: number; // in minutes
+  startDate: Date;
+  color?: string;
+}
 
 export function useTasks() {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
 
-  // Load tasks from storage on mount
   useEffect(() => {
-    try {
-      const savedTasks = getTasks();
-      setTasks(savedTasks);
-      setError(null);
-    } catch (err) {
-      setError('Failed to load tasks');
-      console.error('Error loading tasks:', err);
-    } finally {
-      setLoading(false);
-    }
+    setTasks(loadTasks());
+    setLoading(false);
   }, []);
 
-  // Save tasks to storage whenever tasks change
   useEffect(() => {
     if (!loading) {
-      const success = saveTasks(tasks);
-      if (!success) {
-        setError('Failed to save tasks');
-      }
+      saveTasks(tasks);
     }
   }, [tasks, loading]);
 
-  // Add a new task
-  const addTask = useCallback((input: CreateTaskInput): { success: boolean; errors?: string[]; task?: Task } => {
-    try {
-      const errors = validateTask(input);
-      if (errors.length > 0) {
-        return { success: false, errors };
-      }
+  const addTask = useCallback((input: CreateTaskInput) => {
+    const newTask: Task = {
+      id: uuidv4(),
+      title: input.title.trim(),
+      description: input.description?.trim(),
+      duration: input.duration,
+      startDate: input.startDate,
+      completed: false,
+      color: input.color,
+      createdAt: new Date(),
+    };
 
-      const newTask = createTask(input);
-      setTasks(prev => [...prev, newTask]);
-      setError(null);
-      
-      return { success: true, task: newTask };
-    } catch (err) {
-      const errorMsg = 'Failed to add task';
-      setError(errorMsg);
-      console.error('Error adding task:', err);
-      return { success: false, errors: [errorMsg] };
-    }
+    setTasks(prev => [...prev, newTask]);
   }, []);
 
-  // Update an existing task
-  const updateTaskById = useCallback((updates: UpdateTaskInput): { success: boolean; errors?: string[] } => {
-    try {
-      const errors = validateTask(updates);
-      if (errors.length > 0) {
-        return { success: false, errors };
-      }
-
-      setTasks(prev => prev.map(task => {
-        if (task.id === updates.id) {
-          return updateTask(task, updates);
-        }
-        return task;
-      }));
-      
-      setError(null);
-      return { success: true };
-    } catch (err) {
-      const errorMsg = 'Failed to update task';
-      setError(errorMsg);
-      console.error('Error updating task:', err);
-      return { success: false, errors: [errorMsg] };
-    }
+  const updateTask = useCallback((updatedTask: Task) => {
+    setTasks(prev => prev.map(task => task.id === updatedTask.id ? updatedTask : task));
   }, []);
 
-  // Delete a task
-  const deleteTask = useCallback((taskId: string): boolean => {
-    try {
-      setTasks(prev => prev.filter(task => task.id !== taskId));
-      setError(null);
-      return true;
-    } catch (err) {
-      setError('Failed to delete task');
-      console.error('Error deleting task:', err);
-      return false;
-    }
+  const deleteTask = useCallback((taskId: string) => {
+    setTasks(prev => prev.filter(task => task.id !== taskId));
   }, []);
 
-  // Get a single task by ID
   const getTaskById = useCallback((taskId: string): Task | undefined => {
     return tasks.find(task => task.id === taskId);
   }, [tasks]);
 
-  // Clear all tasks
-  const clearAllTasks = useCallback((): boolean => {
-    try {
-      setTasks([]);
-      setError(null);
-      return true;
-    } catch (err) {
-      setError('Failed to clear tasks');
-      console.error('Error clearing tasks:', err);
-      return false;
-    }
-  }, []);
-
   return {
     tasks,
     loading,
-    error,
     addTask,
-    updateTask: updateTaskById,
+    updateTask,
     deleteTask,
     getTaskById,
-    clearAllTasks,
   };
 }

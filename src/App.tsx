@@ -1,231 +1,119 @@
 import { useState } from 'react';
-import { Calendar, List, Sparkles, Plus, Filter, PieChart, GitBranch, Sun } from 'lucide-react';
-import { Task, TaskStatus, ViewMode } from './types';
-import { useTasks } from './hooks/useTasks';
-import { useTimeTracking } from './hooks/useTimeTracking';
-import { sortTasks, getTaskStats } from './utils/taskUtils';
-import TaskForm from './components/TaskForm';
-import TaskList from './components/TaskList';
-import GanttChart from './components/GanttChart';
-import CriticalPathDiagram from './components/CriticalPathDiagram';
-import StatsDashboard from './components/StatsDashboard';
+import { ZoomLevel, Task } from './types';
+import { useTasks, CreateTaskInput } from './hooks/useTasks';
+import QuickAdd, { ParsedTask } from './components/QuickAdd';
+import { VisualTimeline } from './components/VisualTimeline';
+import { TimelineControls } from './components/TimelineControls';
+import { TaskEditModal } from './components/TaskEditModal';
+import { Calendar } from 'lucide-react';
 
 function App() {
-  const [currentView, setCurrentView] = useState<ViewMode>('critical-path');
-  const [isTaskFormOpen, setIsTaskFormOpen] = useState(false);
-  const [editingTask, setEditingTask] = useState<Task | undefined>();
-  const [statusFilter, setStatusFilter] = useState<TaskStatus | 'all'>('all');
-  const [showStats, setShowStats] = useState(true);
+  const [zoomLevel, setZoomLevel] = useState<ZoomLevel>('day');
+  const [currentDate, setCurrentDate] = useState(new Date());
+  const [selectedTask, setSelectedTask] = useState<Task | null>(null);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
 
-  const { tasks, loading, error, addTask, updateTask, deleteTask } = useTasks();
-  const {
-    activeEntry,
-    startTracking,
-    stopTracking,
-    getTaskTotalTime,
-  } = useTimeTracking();
+  const { tasks, loading, addTask, updateTask, deleteTask } = useTasks();
 
-  // Filter and sort tasks
-  const filteredTasks = tasks.filter(task => 
-    statusFilter === 'all' || task.status === statusFilter
-  );
-  const sortedTasks = sortTasks(filteredTasks);
-  const stats = getTaskStats(tasks);
-
-  const handleAddTask = () => {
-    setEditingTask(undefined);
-    setIsTaskFormOpen(true);
+  const handleQuickAdd = (parsed: ParsedTask) => {
+    const taskInput: CreateTaskInput = {
+      title: parsed.title,
+      duration: parsed.duration,
+      startDate: parsed.startDate,
+    };
+    addTask(taskInput);
   };
 
-  const handleEditTask = (task: Task) => {
-    setEditingTask(task);
-    setIsTaskFormOpen(true);
+  const handleTimelineClick = (date: Date) => {
+    const newTask: CreateTaskInput = {
+      title: 'New Task',
+      duration: 60,
+      startDate: date,
+    };
+    addTask(newTask);
   };
 
-  const handleFormSubmit = (formData: any) => {
-    if (editingTask) {
-      updateTask({ ...formData, id: editingTask.id });
-    } else {
-      addTask(formData);
-    }
-    setIsTaskFormOpen(false);
-    setEditingTask(undefined);
+  const handleTaskClick = (task: Task) => {
+    setSelectedTask(task);
+    setIsEditModalOpen(true);
   };
 
-  const handleStatusUpdate = (taskId: string, status: TaskStatus) => {
-    updateTask({ id: taskId, status });
+  const handleTaskSave = (task: Task) => {
+    updateTask(task);
+    setSelectedTask(null);
   };
 
-  const handleDeleteTask = (taskId: string) => {
-    if (window.confirm('Are you sure you want to delete this task?')) {
-      deleteTask(taskId);
-    }
+  const handleTaskDelete = (taskId: string) => {
+    deleteTask(taskId);
+    setSelectedTask(null);
+  };
+
+  const handleCloseModal = () => {
+    setIsEditModalOpen(false);
+    setSelectedTask(null);
   };
 
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
-          <Sun className="h-8 w-8 text-primary-500 animate-pulse mx-auto mb-2" />
-          <p className="text-gray-600">Loading your day...</p>
+          <Calendar className="h-8 w-8 text-blue-500 animate-pulse mx-auto mb-2" />
+          <p className="text-gray-600">Loading your schedule...</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="h-screen bg-gray-50 flex flex-col overflow-hidden">
       {/* Header */}
-      <header className="bg-white border-b border-gray-200 shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
-            <div className="flex items-center">
-              <Sun className="h-8 w-8 text-primary-500" />
-              <h1 className="ml-3 text-xl font-semibold text-gray-900">
-                DayFlow
-              </h1>
-              {/* Task count */}
-              {tasks.length > 0 && (
-                <span className="ml-2 bg-primary-50 text-primary-700 px-2 py-1 rounded-full text-sm">
-                  {stats.completed}/{stats.total} done today
-                </span>
-              )}
-            </div>
-            
-            {/* View Toggle and Actions */}
-            <div className="flex items-center space-x-4">
-              {/* Status Filter */}
-              {tasks.length > 0 && (
-                <div className="flex items-center space-x-2">
-                  <Filter className="h-4 w-4 text-gray-400" />
-                  <select
-                    value={statusFilter}
-                    onChange={(e) => setStatusFilter(e.target.value as TaskStatus | 'all')}
-                    className="input-field text-sm py-1"
-                  >
-                    <option value="all">All Tasks ({stats.total})</option>
-                    <option value="pending">Pending ({stats.pending})</option>
-                    <option value="in_progress">In Progress ({stats.inProgress})</option>
-                    <option value="completed">Completed ({stats.completed})</option>
-                    <option value="blocked">Blocked ({stats.blocked})</option>
-                  </select>
-                </div>
-              )}
-
-              {/* View Toggle */}
-              <div className="flex bg-gray-100 rounded-lg p-1">
-                <button
-                  onClick={() => setCurrentView('critical-path')}
-                  className={`flex items-center px-3 py-2 rounded-md text-sm font-medium transition-colors ${
-                    currentView === 'critical-path'
-                      ? 'bg-white text-gray-900 shadow-sm'
-                      : 'text-gray-600 hover:text-gray-900'
-                  }`}
-                >
-                  <GitBranch className="h-4 w-4 mr-2" />
-                  Priority Flow
-                </button>
-                <button
-                  onClick={() => setCurrentView('gantt')}
-                  className={`flex items-center px-3 py-2 rounded-md text-sm font-medium transition-colors ${
-                    currentView === 'gantt'
-                      ? 'bg-white text-gray-900 shadow-sm'
-                      : 'text-gray-600 hover:text-gray-900'
-                  }`}
-                >
-                  <Calendar className="h-4 w-4 mr-2" />
-                  Timeline
-                </button>
-                <button
-                  onClick={() => setCurrentView('list')}
-                  className={`flex items-center px-3 py-2 rounded-md text-sm font-medium transition-colors ${
-                    currentView === 'list'
-                      ? 'bg-white text-gray-900 shadow-sm'
-                      : 'text-gray-600 hover:text-gray-900'
-                  }`}
-                >
-                  <List className="h-4 w-4 mr-2" />
-                  List
-                </button>
+      <header className="bg-white border-b border-gray-200 shadow-sm flex-shrink-0">
+        <div className="px-6 py-4">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-3">
+              <Calendar className="h-8 w-8 text-blue-500" />
+              <div>
+                <h1 className="text-xl font-semibold text-gray-900">Visual Scheduler</h1>
+                <p className="text-sm text-gray-500">See your time, manage your day</p>
               </div>
-              
-              {/* Stats Toggle */}
-              {tasks.length > 0 && (
-                <button
-                  onClick={() => setShowStats(!showStats)}
-                  className={`p-2 rounded-lg transition-colors ${
-                    showStats ? 'bg-primary-100 text-primary-700' : 'text-gray-500 hover:bg-gray-100'
-                  }`}
-                  title={showStats ? 'Hide insights' : 'Show insights'}
-                >
-                  <Sparkles className="h-5 w-5" />
-                </button>
-              )}
-
-              <button
-                onClick={handleAddTask}
-                className="btn-primary flex items-center"
-              >
-                <Plus className="h-4 w-4 mr-2" />
-                Add Task
-              </button>
             </div>
+            {tasks.length > 0 && (
+              <div className="text-sm text-gray-600">
+                {tasks.filter(t => t.completed).length} / {tasks.length} completed
+              </div>
+            )}
           </div>
+
+          {/* Quick Add */}
+          <QuickAdd onAdd={handleQuickAdd} disabled={loading} />
         </div>
       </header>
 
-      {/* Main Content */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {error && (
-          <div className="mb-6 bg-red-50 border border-red-200 rounded-md p-4">
-            <p className="text-red-800">{error}</p>
-          </div>
-        )}
+      {/* Timeline Controls */}
+      <TimelineControls
+        zoomLevel={zoomLevel}
+        currentDate={currentDate}
+        onZoomChange={setZoomLevel}
+        onDateChange={setCurrentDate}
+      />
 
-        {/* Stats Dashboard */}
-        {showStats && tasks.length > 0 && (
-          <StatsDashboard
-            tasks={tasks}
-            getTaskTotalTime={getTaskTotalTime}
-          />
-        )}
+      {/* Visual Timeline */}
+      <VisualTimeline
+        tasks={tasks}
+        zoomLevel={zoomLevel}
+        currentDate={currentDate}
+        onTaskClick={handleTaskClick}
+        onTimelineClick={handleTimelineClick}
+        selectedTaskId={selectedTask?.id}
+      />
 
-        <div className="card">
-          {currentView === 'critical-path' && (
-            <CriticalPathDiagram
-              tasks={sortedTasks}
-              onTaskClick={handleEditTask}
-            />
-          )}
-          {currentView === 'gantt' && (
-            <GanttChart
-              tasks={sortedTasks}
-              onTaskClick={handleEditTask}
-            />
-          )}
-          {currentView === 'list' && (
-            <TaskList
-              tasks={sortedTasks}
-              onEdit={handleEditTask}
-              onDelete={handleDeleteTask}
-              onUpdateStatus={handleStatusUpdate}
-              activeTrackingTaskId={activeEntry?.taskId || null}
-              activeEntry={activeEntry}
-              onStartTracking={startTracking}
-              onStopTracking={stopTracking}
-              getTaskTotalTime={getTaskTotalTime}
-            />
-          )}
-        </div>
-      </main>
-
-      {/* Task Form Modal */}
-      <TaskForm
-        isOpen={isTaskFormOpen}
-        onClose={() => setIsTaskFormOpen(false)}
-        onSubmit={handleFormSubmit}
-        editingTask={editingTask}
-        allTasks={tasks}
+      {/* Task Edit Modal */}
+      <TaskEditModal
+        task={selectedTask}
+        isOpen={isEditModalOpen}
+        onClose={handleCloseModal}
+        onSave={handleTaskSave}
+        onDelete={handleTaskDelete}
       />
     </div>
   );
