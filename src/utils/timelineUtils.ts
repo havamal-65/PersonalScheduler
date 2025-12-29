@@ -12,25 +12,25 @@ export const ZOOM_CONFIGS: Record<ZoomLevel, TimelineConfig> = {
   day: {
     pixelsPerHour: 60,
     minIncrement: 1,
-    visibleDays: 1,
+    visibleDays: 7, // Show a full week at day zoom
     timeFormat: 'h:mm a',
   },
   'three-day': {
     pixelsPerHour: 30,
     minIncrement: 2,
-    visibleDays: 3,
+    visibleDays: 14, // Show 2 weeks at 3-day zoom
     timeFormat: 'h a',
   },
   week: {
     pixelsPerHour: 15,
     minIncrement: 6,
-    visibleDays: 7,
+    visibleDays: 60, // Show 2 months at week zoom
     timeFormat: 'ha',
   },
   month: {
     pixelsPerHour: 2.5,
     minIncrement: 6,
-    visibleDays: 30,
+    visibleDays: 365, // Show full year at month zoom
     timeFormat: 'EEE',
   },
 };
@@ -135,7 +135,12 @@ export function calculateTaskPositions(
 
 export function getTimelineRange(currentDate: Date, zoomLevel: ZoomLevel): { start: Date; end: Date } {
   const config = ZOOM_CONFIGS[zoomLevel];
-  const start = startOfDay(currentDate);
+  const dayOfCurrent = startOfDay(currentDate);
+
+  // Center current date in the middle of the range
+  // Show half the days before current date, half after
+  const daysBeforeCurrent = Math.floor(config.visibleDays / 2);
+  const start = addDays(dayOfCurrent, -daysBeforeCurrent);
   const end = addDays(start, config.visibleDays);
 
   return { start, end };
